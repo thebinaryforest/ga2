@@ -7,3 +7,14 @@ dependencies = [
     "django>=6.0.1",
     "psycopg2>=2.9.11",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.5",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "ga2.settings"
+pythonpath = ["."]
+python_files = ["test_*.py", "tests.py"]
