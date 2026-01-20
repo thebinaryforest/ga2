@@ -4,9 +4,6 @@ from django.db.models import Value
 from django.db.models.functions import Concat
 from django.db.models.expressions import Func
 
-
-# TODO: add/try ruff?
-
 class CustomUser(AbstractUser):
     pass
 
