@@ -1,8 +1,10 @@
 from django.contrib.auth.models import AbstractUser
-from django.db import models
+from django.contrib.gis.db import models
 from django.db.models import Value
 from django.db.models.functions import Concat
 from django.db.models.expressions import Func
+
+DATA_SRID = 3857  # Let's keep everything in Google Mercator to avoid reprojections
 
 class CustomUser(AbstractUser):
     pass
@@ -21,6 +23,12 @@ class Dataset(models.Model):
             if old != self.gbif_dataset_key:
                 raise ValueError("gbif_dataset_key cannot be changed after creation")
         super().save(*args, **kwargs)
+
+
+class Species(models.Model):
+    scientific_name = models.CharField(max_length=100)
+    vernacular_name = models.CharField(max_length=100, blank=True)
+    gbif_taxon_key = models.IntegerField(unique=True)
 
 class Observation(models.Model):
     # Pay attention to the fact that this model actually has 4(!) different "identifiers" which serve different
@@ -60,6 +68,17 @@ class Observation(models.Model):
         output_field=models.UUIDField(),
         db_persist=True,
     )
+
+    species = models.ForeignKey(Species, on_delete=models.CASCADE)
+    location = models.PointField(blank=True, null=True, srid=DATA_SRID)
+    date = models.DateField()
+    individual_count = models.IntegerField(blank=True, null=True)
+    locality = models.TextField(blank=True)
+    municipality = models.TextField(blank=True)
+    basis_of_record = models.TextField(blank=True)
+    recorded_by = models.TextField(blank=True)
+    coordinate_uncertainty_in_meters = models.FloatField(blank=True, null=True)
+    references = models.TextField(blank=True)
 
     class Meta:
         indexes = [
