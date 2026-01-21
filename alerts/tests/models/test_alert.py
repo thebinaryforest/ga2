@@ -292,6 +292,95 @@ class TestAlertCounters:
         # 3 total - 1 unseen = 2 seen
         assert alert.get_seen_observation_count() == 2
 
+    def test_get_unseen_observations(self, alert, species, dataset):
+        obs1 = Observation.objects.create(
+            gbif_id="1",
+            occurrence_id="occ-1",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+        obs1.refresh_from_db()
+        obs2 = Observation.objects.create(
+            gbif_id="2",
+            occurrence_id="occ-2",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+        obs2.refresh_from_db()
+
+        # Mark obs1 as unseen
+        AlertObservation.objects.create(
+            alert=alert,
+            stable_id=obs1.stable_id,
+            observation_date=obs1.date,
+        )
+
+        unseen = alert.get_unseen_observations()
+
+        assert unseen.count() == 1
+        assert unseen.first().stable_id == obs1.stable_id
+
+    def test_get_seen_observations(self, alert, species, dataset):
+        obs1 = Observation.objects.create(
+            gbif_id="1",
+            occurrence_id="occ-1",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+        obs1.refresh_from_db()
+        obs2 = Observation.objects.create(
+            gbif_id="2",
+            occurrence_id="occ-2",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+        obs2.refresh_from_db()
+
+        # Mark obs1 as unseen (so obs2 is seen)
+        AlertObservation.objects.create(
+            alert=alert,
+            stable_id=obs1.stable_id,
+            observation_date=obs1.date,
+        )
+
+        seen = alert.get_seen_observations()
+
+        assert seen.count() == 1
+        assert seen.first().stable_id == obs2.stable_id
+
+    def test_get_seen_observations_respects_filters(
+        self, alert, species, species2, dataset
+    ):
+        obs1 = Observation.objects.create(
+            gbif_id="1",
+            occurrence_id="occ-1",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+        obs1.refresh_from_db()
+        # This one doesn't match the species filter
+        obs2 = Observation.objects.create(
+            gbif_id="2",
+            occurrence_id="occ-2",
+            source_dataset=dataset,
+            species=species2,
+            date=date.today(),
+        )
+
+        alert.species.add(species)
+
+        # No unseen observations tracked
+        seen = alert.get_seen_observations()
+
+        # Only obs1 matches the filter and is seen
+        assert seen.count() == 1
+        assert seen.first().stable_id == obs1.stable_id
+
 
 @pytest.mark.django_db
 class TestAlertEmailLogic:

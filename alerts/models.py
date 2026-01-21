@@ -89,6 +89,7 @@ class Observation(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["stable_id"]),
+            models.Index(fields=["date"]),
         ]
 
     def __str__(self):
@@ -175,6 +176,24 @@ class Alert(models.Model):
         Note: This queries the Observation table for total count.
         """
         return self.get_matching_observation_count() - self.unseen_count
+
+    def get_unseen_observations(self):
+        """
+        Get Observation queryset for unseen observations in this alert.
+
+        Uses a subquery join on stable_id with AlertObservation.
+        """
+        unseen_stable_ids = self.alertobservation_set.values("stable_id")
+        return Observation.objects.filter(stable_id__in=unseen_stable_ids)
+
+    def get_seen_observations(self):
+        """
+        Get Observation queryset for seen observations in this alert.
+
+        Returns observations matching filters but NOT in AlertObservation.
+        """
+        unseen_stable_ids = self.alertobservation_set.values("stable_id")
+        return self.get_matching_observations().exclude(stable_id__in=unseen_stable_ids)
 
     def should_send_email(self):
         """Check if enough time has passed since last email based on frequency."""
