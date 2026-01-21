@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - GA2{% endblock %}
+
+{% block content %}
+<h1>GBIF Alert</h1>
+
+{% if user.is_authenticated %}
+<p>Welcome, <strong>{{ user.username }}</strong>!</p>
+<p>You can manage your alerts here (coming soon).</p>
+{% else %}
+<p>GA2 helps you track biodiversity observations from GBIF.</p>
+<p><a href="{% url 'login' %}" class="btn">Login</a> to manage your alerts.</p>
+{% endif %}
+{% endblock %}

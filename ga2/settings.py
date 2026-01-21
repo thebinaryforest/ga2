@@ -122,3 +122,6 @@ AUTH_USER_MODEL = 'alerts.CustomUser'
 
 GDAL_LIBRARY_PATH = "/opt/homebrew/lib/libgdal.dylib"
 GEOS_LIBRARY_PATH = "/opt/homebrew/lib/libgeos_c.dylib"
+
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
