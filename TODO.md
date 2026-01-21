@@ -1,0 +1,1 @@
+To check: on alert creation, it says 0 unseen observations (which is fine: less data in table + clearer for the user). But we have to make sure this number actually changes when new observations come in.

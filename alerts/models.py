@@ -8,7 +8,9 @@ from django.utils import timezone
 DATA_SRID = 3857  # Let's keep everything in Google Mercator to avoid reprojections
 
 class CustomUser(AbstractUser):
-    pass
+    def get_alerts(self):
+        """Get all alerts for this user, with species and datasets prefetched."""
+        return self.alert_set.prefetch_related('species', 'datasets')
 
 class Dataset(models.Model):
     name = models.TextField()
@@ -30,6 +32,9 @@ class Species(models.Model):
     scientific_name = models.CharField(max_length=100)
     vernacular_name = models.CharField(max_length=100, blank=True)
     gbif_taxon_key = models.IntegerField(unique=True)
+
+    def __str__(self):
+        return self.scientific_name
 
 class Observation(models.Model):
     # Pay attention to the fact that this model actually has 4(!) different "identifiers" which serve different

@@ -7,12 +7,57 @@
 
 {% if user.is_authenticated %}
 <p>Welcome, <strong>{{ user.username }}</strong>!</p>
-<p>You can manage your alerts here (coming soon).</p>
+
+<h2>Your Alerts</h2>
+{% if user_alerts %}
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+    <thead>
+        <tr style="background: #f0f0f0; text-align: left;">
+            <th style="padding: 8px; border-bottom: 2px solid #ddd;">Name</th>
+            <th style="padding: 8px; border-bottom: 2px solid #ddd;">Species</th>
+            <th style="padding: 8px; border-bottom: 2px solid #ddd;">Datasets</th>
+            <th style="padding: 8px; border-bottom: 2px solid #ddd;">Email</th>
+            <th style="padding: 8px; border-bottom: 2px solid #ddd;">Unseen</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alert in user_alerts %}
+        <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong><a href="{% url 'admin:alerts_alert_change' alert.pk %}">{{ alert.name }}</a></strong></td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                {% if alert.species.all %}
+                    {% for sp in alert.species.all %}{{ sp.scientific_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                {% else %}
+                    <em>All</em>
+                {% endif %}
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                {% if alert.datasets.all %}
+                    {% for ds in alert.datasets.all %}{{ ds.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                {% else %}
+                    <em>All</em>
+                {% endif %}
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ alert.get_email_frequency_display }}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                {% if alert.unseen_count > 0 %}
+                    <strong style="color: #d9534f;">{{ alert.unseen_count }}</strong>
+                {% else %}
+                    0
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p><em>You have no alerts yet. Create one in the <a href="{% url 'admin:alerts_alert_add' %}">admin</a>.</em></p>
+{% endif %}
+
 {% else %}
 <p>GA2 helps you track biodiversity observations from GBIF.</p>
 <p><a href="{% url 'login' %}" class="btn">Login</a> to manage your alerts.</p>
 {% endif %}
-Than
 <hr style="margin: 30px 0;">
 
 <h2>Observation Statistics</h2>

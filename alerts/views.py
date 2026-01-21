@@ -35,6 +35,11 @@ def home(request):
             source_dataset__in=sample_datasets,
         ).count()
 
+    # User's alerts
+    user_alerts = []
+    if request.user.is_authenticated:
+        user_alerts = request.user.get_alerts()
+
     return render(request, 'home.html', {
         'total_count': total_count,
         'species_counts': species_counts,
@@ -42,4 +47,5 @@ def home(request):
         'combined_count': combined_count,
         'sample_species': sample_species,
         'sample_datasets': sample_datasets,
+        'user_alerts': user_alerts,
     })
