@@ -3,6 +3,7 @@ from django.contrib.gis.db import models
 from django.db.models import Value
 from django.db.models.functions import Concat
 from django.db.models.expressions import Func
+from django.utils import timezone
 
 DATA_SRID = 3857  # Let's keep everything in Google Mercator to avoid reprojections
 
@@ -93,4 +94,118 @@ class Observation(models.Model):
         # Beware: this won't be called on bulk_create/bulk_update!
         self.source_dataset_gbif_key = self.source_dataset.gbif_dataset_key
         super().save(*args, **kwargs)
+
+
+class Alert(models.Model):
+    """
+    User-defined alert that tracks observations matching certain filters.
+    Observations matching the filters are tracked in AlertObservation (unseen only).
+    """
+
+    class EmailFrequency(models.TextChoices):
+        NEVER = "never", "Never"
+        DAILY = "daily", "Daily"
+        WEEKLY = "weekly", "Weekly"
+        MONTHLY = "monthly", "Monthly"
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+
+    # Filters (empty M2M = no filter on that dimension = all)
+    species = models.ManyToManyField(Species, blank=True)
+    datasets = models.ManyToManyField(Dataset, blank=True)
+    # Later: areas = models.ManyToManyField('Area', blank=True)
+
+    # Settings
+    email_frequency = models.CharField(
+        max_length=10,
+        choices=EmailFrequency.choices,
+        default=EmailFrequency.DAILY,
+    )
+    auto_mark_seen_after_days = models.PositiveIntegerField(default=365)
+
+    # Denormalized count (updated by sync_alerts and on manual status changes)
+    unseen_count = models.PositiveIntegerField(default=0)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_email_sent_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Alert '{self.name}' ({self.user.username})"
+
+    def get_matching_observations(self):
+        """Get Observation queryset matching this alert's filters (AND logic)."""
+        qs = Observation.objects.all()
+
+        if self.species.exists():
+            qs = qs.filter(species__in=self.species.all())
+
+        if self.datasets.exists():
+            qs = qs.filter(source_dataset__in=self.datasets.all())
+
+        # Later: spatial filter
+        # if self.areas.exists():
+        #     qs = qs.filter(location__intersects=self.combined_area)
+
+        return qs
+
+    def should_send_email(self):
+        """Check if enough time has passed since last email based on frequency."""
+        from datetime import timedelta
+
+        if self.email_frequency == self.EmailFrequency.NEVER:
+            return False
+
+        if self.last_email_sent_at is None:
+            return True
+
+        delta = {
+            "daily": timedelta(days=1),
+            "weekly": timedelta(days=7),
+            "monthly": timedelta(days=30),
+        }[self.email_frequency]
+
+        return timezone.now() - self.last_email_sent_at >= delta
+
+    def get_new_observations_since_last_email(self):
+        """Get AlertObservation entries added since last email (or alert creation)."""
+        since = self.last_email_sent_at or self.created_at
+        return self.alertobservation_set.filter(first_seen_in_alert__gt=since)
+
+
+class AlertObservation(models.Model):
+    """
+    Tracks UNSEEN observations for an alert.
+
+    - Created when a new observation matches the alert's filters
+    - Deleted when user marks it as seen (manual or auto after X days)
+    - Deleted when observation disappears from Observation table
+
+    Note: stable_id is NOT a ForeignKey to Observation because Observation
+    is truncated/reloaded nightly. We use stable_id (UUID) to match records.
+    """
+
+    alert = models.ForeignKey(Alert, on_delete=models.CASCADE)
+    stable_id = models.UUIDField()
+
+    # Denormalized from Observation for auto-mark-as-seen without expensive join
+    observation_date = models.DateField()
+
+    first_seen_in_alert = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["alert", "stable_id"], name="unique_alert_observation"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["alert", "observation_date"]),
+            models.Index(fields=["alert", "first_seen_in_alert"]),
+            models.Index(fields=["stable_id"]),
+        ]
+
+    def __str__(self):
+        return f"AlertObservation {self.stable_id} for {self.alert}"
 
