@@ -12,4 +12,36 @@
 <p>GA2 helps you track biodiversity observations from GBIF.</p>
 <p><a href="{% url 'login' %}" class="btn">Login</a> to manage your alerts.</p>
 {% endif %}
+Than
+<hr style="margin: 30px 0;">
+
+<h2>Observation Statistics</h2>
+<p><strong>Total observations:</strong> {{ total_count|default:"0" }}</p>
+
+{% if species_counts %}
+<h3>By Species (sample)</h3>
+<ul>
+    {% for item in species_counts %}
+    <li>{{ item.species.scientific_name }}: {{ item.count }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% if dataset_counts %}
+<h3>By Dataset (sample)</h3>
+<ul>
+    {% for item in dataset_counts %}
+    <li>{{ item.dataset.name }}: {{ item.count }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% if combined_count is not None %}
+<h3>Combined Filter (species AND dataset)</h3>
+<p>Observations matching any of the {{ sample_species|length }} species above AND any of the {{ sample_datasets|length }} datasets above: <strong>{{ combined_count }}</strong></p>
+{% endif %}
+
+{% if not species_counts and not dataset_counts %}
+<p><em>No observations in the system yet.</em></p>
+{% endif %}
 {% endblock %}
