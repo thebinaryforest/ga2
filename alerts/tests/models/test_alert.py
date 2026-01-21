@@ -206,6 +206,94 @@ class TestAlertFiltering:
 
 
 @pytest.mark.django_db
+class TestAlertCounters:
+    def test_get_matching_observation_count_no_filters(self, alert, species, dataset):
+        Observation.objects.create(
+            gbif_id="1",
+            occurrence_id="occ-1",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+        Observation.objects.create(
+            gbif_id="2",
+            occurrence_id="occ-2",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+
+        assert alert.get_matching_observation_count() == 2
+
+    def test_get_matching_observation_count_with_filters(
+        self, alert, species, species2, dataset
+    ):
+        Observation.objects.create(
+            gbif_id="1",
+            occurrence_id="occ-1",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+        Observation.objects.create(
+            gbif_id="2",
+            occurrence_id="occ-2",
+            source_dataset=dataset,
+            species=species2,
+            date=date.today(),
+        )
+
+        alert.species.add(species)
+
+        assert alert.get_matching_observation_count() == 1
+
+    def test_get_unseen_observation_count_returns_denormalized_field(self, alert):
+        alert.unseen_count = 42
+        alert.save()
+
+        assert alert.get_unseen_observation_count() == 42
+
+    def test_get_unseen_observation_count_default_zero(self, alert):
+        assert alert.get_unseen_observation_count() == 0
+
+    def test_get_seen_observation_count(self, alert, species, dataset):
+        obs1 = Observation.objects.create(
+            gbif_id="1",
+            occurrence_id="occ-1",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+        obs1.refresh_from_db()
+        Observation.objects.create(
+            gbif_id="2",
+            occurrence_id="occ-2",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+        Observation.objects.create(
+            gbif_id="3",
+            occurrence_id="occ-3",
+            source_dataset=dataset,
+            species=species,
+            date=date.today(),
+        )
+
+        # 1 unseen observation
+        alert.unseen_count = 1
+        alert.save()
+        AlertObservation.objects.create(
+            alert=alert,
+            stable_id=obs1.stable_id,
+            observation_date=obs1.date,
+        )
+
+        # 3 total - 1 unseen = 2 seen
+        assert alert.get_seen_observation_count() == 2
+
+
+@pytest.mark.django_db
 class TestAlertEmailLogic:
     def test_should_send_email_never_frequency(self, alert):
         alert.email_frequency = Alert.EmailFrequency.NEVER

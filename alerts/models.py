@@ -155,6 +155,27 @@ class Alert(models.Model):
 
         return qs
 
+    def get_matching_observation_count(self):
+        """Count observations matching this alert's filters. Queries Observation table."""
+        return self.get_matching_observations().count()
+
+    def get_unseen_observation_count(self):
+        """
+        Return the unseen observation count.
+
+        Returns the denormalized `unseen_count` field (no DB query).
+        This is updated by sync_alerts after each import.
+        """
+        return self.unseen_count
+
+    def get_seen_observation_count(self):
+        """
+         Count seen observations (total matching minus unseen).
+
+        Note: This queries the Observation table for total count.
+        """
+        return self.get_matching_observation_count() - self.unseen_count
+
     def should_send_email(self):
         """Check if enough time has passed since last email based on frequency."""
         from datetime import timedelta
